@@ -26,25 +26,27 @@ def start(bot, update):
 def list_users(bot, update):
     try:
         users = dao.get_users()
-        user_ids = merge_sort(users.keys())
-
-        if len(user_ids) > 0:
-
-            for u in user_ids:
-                bot.sendMessage(
-                    chat_id=update.message.chat_id,
-                    text="user id: {}\nuser data: {}".format(u, users[u])
-                )
-        else:
-            bot.sendMessage(
-                    chat_id=update.message.chat_id,
-                    text='No users'
-                )
     except Exception as e:
         bot.sendMessage(
-                    chat_id=update.message.chat_id,
-                    text='{}'.format(e)
-                )
+            chat_id=update.message.chat_id,
+            text='Some problems accessing DB. Please, try again later...'
+        )
+        return ConversationHandler.END
+
+    user_ids = merge_sort(users.keys())
+
+    if len(user_ids) > 0:
+
+        for u in user_ids:
+            bot.sendMessage(
+                chat_id=update.message.chat_id,
+                text="user id: {}\nuser data: {}".format(u, users[u])
+            )
+    else:
+        bot.sendMessage(
+                chat_id=update.message.chat_id,
+                text='No users'
+            )
 
     return ConversationHandler.END
 
@@ -58,21 +60,29 @@ def request_delete_user(bot, update):
 
 
 def process_delete_user(bot, update):
+
     user_id = update.message.text
-    exists = dao.get_user(user_id)
+    try:
+        exists = dao.get_user(user_id)
 
-    msg = "User doesn't exist"
+        msg = "User doesn't exist"
 
-    if exists:
-        dao.delete_user(user_id)
-        msg = "User {} deleted".format(user_id)
+        if exists:
+            dao.delete_user(user_id)
+            msg = "User {} deleted".format(user_id)
 
-    bot.sendMessage(
-        chat_id=update.message.chat_id,
-        text=msg
-    )
-
-    return ConversationHandler.END
+        bot.sendMessage(
+            chat_id=update.message.chat_id,
+            text=msg
+        )
+    except Exception as e:
+        bot.sendMessage(
+            chat_id=update.message.chat_id,
+            text="Smth went wrong while accessing DB. Deletion was not completed. "
+                 "Please again try later..."
+        )
+    finally:
+        return ConversationHandler.END
 
 
 def start_saving(bot, update):
@@ -110,15 +120,20 @@ def add_person_field(bot, update, user_data):
     object_to_save = {i: user_data[i] for i in FIELDS}
     user_data.clear()  # forget added user info
 
-    bot.sendMessage(
-        chat_id=update.message.chat_id,
-        text="User {} saved".format(object_to_save)
-    )
-
     id_ = uuid.uuid4().hex
-    dao.save_user(id_, object_to_save)
-
-    return ConversationHandler.END
+    try:
+        dao.save_user(id_, object_to_save)
+        bot.sendMessage(
+            chat_id=update.message.chat_id,
+            text="User {} saved".format(object_to_save)
+        )
+    except Exception as e:
+        bot.sendMessage(
+            chat_id=update.message.chat_id,
+            text="Smth went wrong while saving ):"
+        )
+    finally:
+        return ConversationHandler.END
 
 
 def cancel(bot, update):
